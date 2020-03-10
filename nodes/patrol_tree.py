@@ -31,7 +31,7 @@ from robbie_test.task_setup import *
 from sensor_msgs.msg import BatteryState
 #from phoenix_robot.clean_house_tasks_tree import *
 from robbie_test.autodock import AutoDock
-
+from diagnostic_simmsg.srv import *
 
 class BlackBoard():
     def __init__(self):
@@ -50,6 +50,7 @@ class Patrol():
 
         # Initialize the black board
         self.blackboard = BlackBoard()
+        self.req = setbatterylevelRequest(12.5)
 
         # Create a list to hold the move_base tasks
         MOVE_BASE_TASKS = list()
@@ -63,7 +64,7 @@ class Patrol():
             goal.target_pose.header.stamp = rospy.Time.now()
             goal.target_pose.pose = self.waypoints[i % n_waypoints]
             
-            move_base_task = SimpleActionTask("MOVE_BASE_TASK_" + str(i), "move_base", MoveBaseAction, goal, result_timeout=40,
+            move_base_task = SimpleActionTask("MOVE_BASE_TASK_" + str(i), "move_base", MoveBaseAction, goal, result_timeout=120,
  reset_after=False)
             
             MOVE_BASE_TASKS.append(move_base_task)
@@ -113,10 +114,11 @@ reset_after=True)
             #CHARGE_COMPLETE = ServiceTask("CHARGE_COMPLETE", "/set_battery_level", SetBatteryLevel, 11.5, result_cb=self.recharge_cb)
 
             # The charge robot task (uses ServiceTask)
-            #CHARGE_ROBOT = ServiceTask("CHARGE_ROBOT", "battery_simulator/set_battery_level", SetBatteryLevel, 100, result_cb=self.recharge_cb)
-            CHARGING = RechargeRobot("CHARGING", interval=3, blackboard=self.blackboard,topic="/setbatterylevel")
+            #name, service, service_type, request, result_cb=None, wait_for_service=True, timeout=5
+            CHARGE_ROBOT = ServiceTask("CHARGE_ROBOT", "setbatterylevel",setbatterylevel, self.req, result_cb=self.recharge_cb,wait_for_service=True, timeout=15)
+            #CHARGING = RechargeRobot("CHARGING", interval=3, blackboard=self.blackboard,topic="/setbatterylevel")
             
-            RECHARGE = Sequence("RECHARGE", [NAV_DOCK_TASK, CHARGING], reset_after=True)
+            RECHARGE = Sequence("RECHARGE", [NAV_DOCK_TASK, CHARGE_ROBOT], reset_after=True)
              
             # Build the recharge sequence using inline construction
             #RECHARGE = Sequence("RECHARGE", [NAV_DOCK_TASK, AUTODOCK])
